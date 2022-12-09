@@ -89,10 +89,14 @@ class ISR {
                     result,
                 });
                 if (this.onComplete) {
-                    result = await this.onComplete(result);
-                    this.log('Result of execution onComplete:', {
-                        onComplete: typeof this.onComplete,
-                    });
+                    try {
+                        result = await this.onComplete(result);
+                        this.log('Result of execution onComplete:', {
+                            onComplete: typeof this.onComplete,
+                        });
+                    } catch (error) {
+                        this.log('Error onComplete: ', error.message);
+                    }
                 }
             } catch (error) {
                 this.log({
