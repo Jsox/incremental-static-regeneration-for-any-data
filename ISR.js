@@ -129,3 +129,4 @@ class ISR {
     }
 }
 module.exports = ISR;
+export default ISR;
