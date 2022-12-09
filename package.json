@@ -1,0 +1,18 @@
+{
+    "name": "get-incremental-cached-data",
+    "version": "1.0.0",
+    "description": "Incremental Static Regeneration for any slow function. Get any data from cache and update in cache, if cache time is out",
+    "main": "index.js",
+    "repository": "https://github.com/Jsox/incremental-static-regeneration-for-any-data",
+    "author": "Jsix",
+    "license": "BSD-3-Clause",
+    "private": false,
+    "dependencies": {
+        "md5": "^2.3.0",
+        "memory-cache": "^0.2.0"
+    },
+    "scripts": {
+        "promise": "node ./examples/promise.js",
+        "fetch": "node ./examples/fetch.js"
+    }
+}
