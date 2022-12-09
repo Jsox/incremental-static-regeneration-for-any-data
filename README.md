@@ -43,6 +43,8 @@ options = {
     clearCache = false, // If true - cache will be cleaned (Boolean)
 }
 ```
+## Methods
+```getData``` - async, returning data
 ## How it works
 + First execution: *executing function, returning result, result is caching*
 + Second execution:
