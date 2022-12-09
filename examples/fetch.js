@@ -1,5 +1,5 @@
 const https = require('https');
-const ISR = require('../ISR.js');
+import ISR from '../ISR.js';
 
 const url = 'https://jsonplaceholder.typicode.com/users';
 

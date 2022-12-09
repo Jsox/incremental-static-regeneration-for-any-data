@@ -1,3 +1,5 @@
+import cache from 'memory-cache';
+import md5 from 'md5';
 class ISR {
     cacheTime;
     noCache;
@@ -27,8 +29,8 @@ class ISR {
         this.cacheTime = cacheTime;
         this.noCache = noCache;
         this.criticalCacheTime = criticalCacheTime;
-        this.cache = require('memory-cache');
-        this.md5 = require('md5');
+        this.cache = cache;
+        this.md5 = md5;
         this.func = func;
         this.onComplete = onComplete;
         this.isLogging = isLogging;
@@ -128,5 +130,4 @@ class ISR {
         if (this.isLogging) console.log(f, s, t);
     }
 }
-module.exports = ISR;
 export default ISR;

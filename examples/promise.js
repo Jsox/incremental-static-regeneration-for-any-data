@@ -1,4 +1,4 @@
-const ISR = require('../ISR.js');
+import ISR from '../ISR.js';
 
 const testData = {
     id: '1',
