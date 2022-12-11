@@ -1,9 +1,12 @@
 {
     "name": "get-incremental-cached-data",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "description": "Incremental Static Regeneration for any slow function. Get any data from cache and update in cache, if cache time is out",
     "main": "ISR.js",
-    "repository": "https://github.com/Jsox/incremental-static-regeneration-for-any-data",
+    "repository": "https://github.com/Jsox/incremental-static-regeneration-for-any-data.git",
+    "publishConfig": {
+        "registry": "https://npm.pkg.github.com"
+    },
     "author": "Eugene Yakunin <admin@jsix.ru> (https://jsix.ru)",
     "license": "BSD-3-Clause",
     "private": false,
