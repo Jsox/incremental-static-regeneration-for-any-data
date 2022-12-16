@@ -3,7 +3,7 @@
 The purpose of this script is to immediately and very quickly (a few milliseconds) return result of execution slow functions from cache and update the data in the cache **after** the data is returned.
 
 For example, you have `fetch`, the request is executed for 200 milliseconds and each client waits for data to load, although the data is updated once an hour. This script, after the first execution, caches the data and returns the result of the previous execution in ~5 milliseconds.
-This is similar to getStaticProps ISR revalidate in recent versions next.js.
+This is similar to **getStaticProps** with `revalidate` in recent versions next.js.
 
 ## Installation
 
@@ -79,7 +79,7 @@ options = {
 Цель этого скрипта - немедленно и очень быстро (несколько миллисекунд) вернуть результат выполнения медленных функций из кеша и обновить данные в кэше **после того**, как данные будут возвращены.
 
 Например, у вас есть `fetch`, запрос выполняется в течение 200 миллисекунд, и каждый клиент ожидает загрузки данных, хотя данные обновляются раз в час. Этот скрипт после первого выполнения кэширует данные и возвращает результат предыдущего выполнения через ~5 миллисекунд.
-Это похоже на getStaticProps ISR revalidate в последних версиях next.js .
+Это похоже на **getStaticProps** с параметром `revalidate` в последних версиях next.js .
 
 ## Установка
 
