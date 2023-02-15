@@ -1,7 +1,7 @@
 {
     "name": "faster-query",
-    "version": "1.0.18",
-    "description": "Incremental Static Regeneration for any slow function. Get any data from cache and update in cache, if cache time is out",
+    "version": "1.1.0",
+    "description": "Faster query for any slow function. Get any data from cache and update in cache AFTER data is received",
     "types": "dist/index.d.ts",
     "keywords": [
         "revalidate",
@@ -24,7 +24,6 @@
         "memory-cache": "^0.2.0"
     },
     "scripts": {
-        "promise": "node ./examples/promise.js",
         "build": "tsc"
     },
     "devDependencies": {
