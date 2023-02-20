@@ -1,30 +1,42 @@
-import cache from 'memory-cache';
-import md5 from 'md5';
-class ISR {
-    cacheTime;
-    noCache;
-    criticalCacheTime;
-    now;
-    cache;
-    md5;
-    func;
-    onComplete;
-    key;
-    data;
-    exists;
-    isLogging;
+const cache = require('memory-cache');
+const md5 = require('md5');
 
-    constructor(func, options) {
+interface IOptions {
+    cacheTime?: number;
+    noCache?: boolean;
+    criticalCacheTime?: number;
+    onComplete?: (v: unknown) => any | undefined;
+    key: string | Buffer | [] | Uint8Array;
+    isLogging?: boolean;
+    clearCache?: boolean;
+}
+export default class ISR {
+    cacheTime: number;
+    noCache: boolean;
+    criticalCacheTime: number;
+    now: number;
+    cache: typeof cache;
+    md5: typeof md5;
+    func: () => Promise<any>;
+    onComplete?: (v: unknown) => any | undefined;
+    key: string | Buffer | [] | Uint8Array;
+    data: any;
+    exists: any;
+    isLogging: boolean;
+    clearCache: boolean;
+
+    constructor(func: () => Promise<any>, options: IOptions) {
         const {
             noCache = false,
             cacheTime = 5 * 1000,
             criticalCacheTime = 60 * 60 * 1000,
             key,
-            onComplete = null,
+            onComplete = undefined,
             isLogging = false,
             clearCache = false,
         } = options;
 
+        this.clearCache = false;
         this.exists = false;
         this.cacheTime = cacheTime;
         this.noCache = noCache;
@@ -34,6 +46,7 @@ class ISR {
         this.func = func;
         this.onComplete = onComplete;
         this.isLogging = isLogging;
+        this.now = Date.now();
 
         if (clearCache) this.cache.clear();
 
@@ -44,7 +57,7 @@ class ISR {
         this.data = null;
     }
 
-    async getData() {
+    async getData(): Promise<any> {
         this.now = Date.now();
 
         return new Promise(async (resolve) => {
@@ -96,13 +109,13 @@ class ISR {
                         this.log('Result of execution onComplete:', {
                             onComplete: typeof this.onComplete,
                         });
-                    } catch (error) {
-                        this.log('Error onComplete: ', error.message);
+                    } catch (error: any) {
+                        this.log('Error onComplete: ', error?.message);
                     }
                 }
-            } catch (error) {
+            } catch (error: any) {
                 this.log({
-                    errorMessage: error.message,
+                    errorMessage: error?.message,
                     errorFull: error,
                 });
                 this.cache.del(this.key);
@@ -126,8 +139,7 @@ class ISR {
         });
     }
 
-    log(f, s = '', t = '') {
+    log(f: any | unknown, s: any | unknown = '', t: any | unknown = '') {
         if (this.isLogging) console.log(f, s, t);
     }
 }
-export default ISR;

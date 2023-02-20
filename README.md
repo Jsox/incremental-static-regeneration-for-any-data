@@ -8,13 +8,13 @@ This is similar to **getStaticProps** with `revalidate` in recent versions next.
 ## Installation
 
 ```javascript
-npm i get-incremental-cached-data
+npm i faster-query
 ```
 
 or
 
 ```javascript
-yarn add get-incremental-cached-data
+yarn add faster-query
 ```
 
 ## Example
@@ -22,7 +22,7 @@ yarn add get-incremental-cached-data
 > see `examples` dir for more examples.
 
 ```javascript
-import ISR from 'get-incremental-cached-data';
+import ISR from 'faster-query';
 
 const url = 'https://slow.site/with/slow/backend';
 const slowFunctionWithQueryData = () => fetch(url);
@@ -84,13 +84,13 @@ options = {
 ## Установка
 
 ```javascript
-npm i get-incremental-cached-data
+npm i faster-query
 ```
 
 или
 
 ```javascript
-yarn add get-incremental-cached-data
+yarn add faster-query
 ```
 
 ## Пример
@@ -98,7 +98,7 @@ yarn add get-incremental-cached-data
 > В папке `examples` есть пару примеров.
 
 ```javascript
-import ISR from 'get-incremental-cached-data';
+import ISR from 'faster-query';
 
 const url = 'https://slow.site/with/slow/backend';
 const slowFunctionWithQueryData = () => fetch(url);
