@@ -1,4 +1,4 @@
-# Incremental Data Revalidation for any slow function.
+# faster-query
 
 The purpose of this script is to immediately and very quickly (a few milliseconds) return result of execution slow functions from cache and update the data in the cache **after** the data is returned.
 
@@ -143,7 +143,7 @@ options = {
 
 ## Как это работает
 
-- Первое выполнение: _выполняется функция, возвращающается результат, результат кэшируется_
+- Первое выполнение: _выполняется функция, возвращается результат, результат кэшируется_
 - Вторая и последующие выполнения:
 - - Если `cacheTime` **<** времени с момента первого выполнения - _возвращается результат из кэша_
 * Если `cacheTime` **>**, времени с момента первого выполнения: **немедленно** _возвращается результат из кэша, а затем выполняется функция и результат помещается в кэш_
