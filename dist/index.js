@@ -42,13 +42,23 @@ const mkdir = util_1.default.promisify(fs.mkdir);
 const readFile = util_1.default.promisify(fs.readFile);
 const writeFile = util_1.default.promisify(fs.writeFile);
 const unlink = util_1.default.promisify(fs.unlink);
+/**
+ * A class for caching results of asynchronous functions.
+ */
 class FasterQuery {
+    /**
+     * Constructs a FasterQuery instance.
+     * @param {string} cachePath - The path where cached data will be stored.
+     */
     constructor(cachePath) {
         this.timersToUpdate = new Map();
         this.timersToDelete = new Map();
         this.cachePath = cachePath;
         this.initializeCacheDirectory();
     }
+    /**
+     * Initializes the cache directory.
+     */
     initializeCacheDirectory() {
         return __awaiter(this, void 0, void 0, function* () {
             try {
@@ -59,6 +69,12 @@ class FasterQuery {
             }
         });
     }
+    /**
+     * Generates a hash based on the function and its arguments.
+     * @param {AsyncFunction<any>} fn - The asynchronous function.
+     * @param {any[]} args - The arguments passed to the function.
+     * @returns {Promise<string>} - The generated hash.
+     */
     hashFunction(fn, args) {
         return __awaiter(this, void 0, void 0, function* () {
             const hash = crypto.createHash('md5');
@@ -67,6 +83,11 @@ class FasterQuery {
             return hash.digest('hex');
         });
     }
+    /**
+     * Reads cached data from the file system.
+     * @param {string} key - The cache key.
+     * @returns {Promise<any | null>} - The cached data or null if not found.
+     */
     readCache(key) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
@@ -78,77 +99,134 @@ class FasterQuery {
             }
         });
     }
+    /**
+     * Writes data to the cache in the file system.
+     * @param {string} key - The cache key.
+     * @param {any} data - The data to be cached.
+     */
     writeCache(key, data) {
         return __awaiter(this, void 0, void 0, function* () {
-            yield writeFile(`${this.cachePath}/${key}.json`, JSON.stringify(data), 'utf8');
+            try {
+                yield writeFile(`${this.cachePath}/${key}.json`, JSON.stringify(data), 'utf8');
+            }
+            catch (error) {
+                console.error('Error deleting cache:', error);
+            }
         });
     }
+    /**
+     * Deletes cached data from the file system.
+     * @param {string} key - The cache key.
+     */
     deleteCache(key) {
         return __awaiter(this, void 0, void 0, function* () {
-            yield unlink(`${this.cachePath}/${key}.json`);
+            try {
+                yield unlink(`${this.cachePath}/${key}.json`);
+            }
+            catch (error) {
+                console.error('Error deleting cache:', error);
+            }
         });
     }
+    /**
+     * Executes the function, writes the result to the cache, and returns the result.
+     * @param {AsyncFunction<T>} fn - The asynchronous function.
+     * @param {any[]} args - The arguments passed to the function.
+     * @returns {Promise<any>} - The result of the function.
+     */
     executeFunctionAndWriteCache(fn, args) {
         return __awaiter(this, void 0, void 0, function* () {
-            const result = yield fn(...args);
-            const key = yield this.hashFunction(fn, args);
-            yield this.writeCache(key, { result, timestamp: Date.now() });
-            return result;
+            try {
+                const result = yield fn(...args);
+                const key = yield this.hashFunction(fn, args);
+                yield this.writeCache(key, { result, timestamp: Date.now() });
+                return result;
+            }
+            catch (error) {
+                console.error('Error executing function and writing cache:', error);
+                throw error; // Propagate the error
+            }
         });
     }
+    /**
+     * Updates the cache if needed and returns the cached or computed result.
+     * @param {string} key - The cache key.
+     * @param {AsyncFunction<T>} fn - The asynchronous function.
+     * @param {any[]} args - The arguments passed to the function.
+     * @param {CacheOptions} options - The caching options.
+     * @returns {Promise<any>} - The cached or computed result.
+     */
     updateCacheIfNeeded(key, fn, args, options) {
         return __awaiter(this, void 0, void 0, function* () {
-            const ttl = 'ttl' in options ? options.ttl : 60 * 60;
-            const autoUpdateDataByInterval = 'autoUpdateDataByInterval' in options
-                ? options.autoUpdateDataByInterval
-                : false;
-            const returnCachedIfExpiredAndUpdate = 'returnCachedIfExpiredAndUpdate' in options
-                ? options.returnCachedIfExpiredAndUpdate
-                : false;
-            const deleteAfterExpiration = 'deleteAfterExpiration' in options
-                ? options.deleteAfterExpiration
-                : false;
-            if (autoUpdateDataByInterval) {
-                if (!this.timersToUpdate.has(key)) {
-                    this.timersToUpdate.set(key, ttl);
-                    log(`SCHEDULED UPDATE: ${fn.name}(${args})`, ttl, this.timersToUpdate.keys());
-                    setInterval(() => __awaiter(this, void 0, void 0, function* () {
-                        log(`UPDATED DATA IN SCHEDULE: ${fn.name}(${args})`, `every (${ttl}-2) sec`);
-                        this.executeFunctionAndWriteCache(fn, args);
-                    }), (ttl - 2) * 1000);
+            try {
+                const ttl = 'ttl' in options ? options.ttl : 60 * 60;
+                const autoUpdateDataByInterval = 'autoUpdateDataByInterval' in options
+                    ? options.autoUpdateDataByInterval
+                    : false;
+                const returnCachedIfExpiredAndUpdate = 'returnCachedIfExpiredAndUpdate' in options
+                    ? options.returnCachedIfExpiredAndUpdate
+                    : false;
+                const deleteAfterExpiration = 'deleteAfterExpiration' in options
+                    ? options.deleteAfterExpiration
+                    : false;
+                if (autoUpdateDataByInterval) {
+                    if (!this.timersToUpdate.has(key)) {
+                        this.timersToUpdate.set(key, ttl);
+                        log(`SCHEDULED UPDATE: ${fn.name}(${args})`, ttl, this.timersToUpdate.keys());
+                        setInterval(() => __awaiter(this, void 0, void 0, function* () {
+                            log(`UPDATED DATA IN SCHEDULE: ${fn.name}(${args})`, `every (${ttl}-2) sec`);
+                            yield this.executeFunctionAndWriteCache(fn, args);
+                        }), (ttl - 2) * 1000);
+                    }
                 }
+                if (deleteAfterExpiration) {
+                    if (this.timersToDelete.has(key)) {
+                        clearTimeout(this.timersToDelete.get(key));
+                    }
+                    this.timersToDelete.set(key, setTimeout(() => __awaiter(this, void 0, void 0, function* () {
+                        yield this.deleteCache(key);
+                        log(`DELETED DATA: ${fn.name}(${args})`, ttl);
+                    }), ttl * 1000));
+                }
+                const cachedData = yield this.readCache(key);
+                if (cachedData !== null) {
+                    const currentTime = Date.now();
+                    const cacheTime = cachedData.timestamp;
+                    if (currentTime - cacheTime <= ttl * 1000) {
+                        log(`CACHE HIT: ${fn.name}(${args})`, ttl * 1000, currentTime - cacheTime, '<=', ttl * 1000);
+                        return cachedData.result;
+                    }
+                    else if (returnCachedIfExpiredAndUpdate) {
+                        log(`CACHE EXPIRED - return Cached and update: ${fn.name}(${args})`, ttl * 1000, currentTime - cacheTime, '>', ttl * 1000);
+                        yield this.executeFunctionAndWriteCache(fn, args);
+                        return cachedData.result;
+                    }
+                }
+                log(`CACHE MISS for ${key}`, ttl);
+                return yield this.executeFunctionAndWriteCache(fn, args);
             }
-            if (deleteAfterExpiration) {
-                if (this.timersToDelete.has(key)) {
-                    clearTimeout(this.timersToDelete.get(key));
-                }
-                this.timersToDelete.set(key, setTimeout(() => __awaiter(this, void 0, void 0, function* () {
-                    yield this.deleteCache(key);
-                    log(`DELETED DATA: ${fn.name}(${args})`, ttl);
-                }), ttl * 1000));
+            catch (error) {
+                console.error('Error updating cache if needed:', error);
+                throw error; // Propagate the error
             }
-            const cachedData = yield this.readCache(key);
-            if (cachedData !== null) {
-                const currentTime = Date.now();
-                const cacheTime = cachedData.timestamp;
-                if (currentTime - cacheTime <= ttl * 1000) {
-                    log(`CACHE HIT: ${fn.name}(${args})`, ttl * 1000, currentTime - cacheTime, '<=', ttl * 1000);
-                    return cachedData.result;
-                }
-                else if (returnCachedIfExpiredAndUpdate) {
-                    log(`CACHE EXPIRED - return Cached and update: ${fn.name}(${args})`, ttl * 1000, currentTime - cacheTime, '>', ttl * 1000);
-                    this.executeFunctionAndWriteCache(fn, args);
-                    return cachedData.result;
-                }
-            }
-            log(`CACHE MISS for ${key}`, ttl);
-            return yield this.executeFunctionAndWriteCache(fn, args);
         });
     }
+    /**
+     * Returns a memoized version of an asynchronous function.
+     * @param {AsyncFunction<T>} fn - The asynchronous function to be memoized.
+     * @param {CacheOptions} options - The options for caching.
+     * @return {AsyncFunction<T>} - A memoized version of the input asynchronous function.
+     */
     get(fn, options) {
         return (...args) => __awaiter(this, void 0, void 0, function* () {
-            const key = yield this.hashFunction(fn, args);
-            return this.updateCacheIfNeeded(key, fn, args, options);
+            try {
+                const key = yield this.hashFunction(fn, args);
+                return yield this.updateCacheIfNeeded(key, fn, args, options);
+            }
+            catch (error) {
+                console.error('Error getting memoized function:', error);
+                throw error; // Propagate the error
+            }
         });
     }
 }

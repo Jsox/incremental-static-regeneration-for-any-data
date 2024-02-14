@@ -4,6 +4,7 @@
     "description": "Faster query for any slow function. Get any data from cache and update in cache AFTER data is received",
     "types": "dist/index.d.ts",
     "keywords": [
+        "performance",
         "revalidate",
         "file cache",
         "cache",
