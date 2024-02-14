@@ -51,8 +51,6 @@ class FasterQuery {
      * @param {string} cachePath - The path where cached data will be stored.
      */
     constructor(cachePath) {
-        this.timersToUpdate = new Map();
-        this.timersToDelete = new Map();
         this.cachePath = cachePath;
         this.initializeCacheDirectory();
     }
@@ -170,21 +168,20 @@ class FasterQuery {
                     ? options.deleteAfterExpiration
                     : false;
                 if (autoUpdateDataByInterval) {
-                    if (!this.timersToUpdate.has(key)) {
-                        this.timersToUpdate.set(key, ttl);
-                        this.log(`SCHEDULED UPDATE: ${fn.name}(${args})`, ttl, this.timersToUpdate.keys());
-                        setInterval(() => __awaiter(this, void 0, void 0, function* () {
+                    if (!FasterQuery.timersToUpdate.has(key)) {
+                        this.log(`SCHEDULED UPDATE: ${fn.name}(${args})`, ttl, FasterQuery.timersToUpdate.keys());
+                        FasterQuery.timersToUpdate.set(key, setInterval(() => __awaiter(this, void 0, void 0, function* () {
                             this.log(`UPDATED DATA IN SCHEDULE: ${fn.name}(${args})`, `every (${ttl}-2) sec`);
                             yield this.executeFunctionAndWriteCache(fn, args);
-                        }), (ttl - 2) * 1000);
+                        }), (ttl - 2) * 1000));
                     }
                 }
                 if (deleteAfterExpiration) {
-                    if (!this.timersToDelete.has(key)) {
+                    if (!FasterQuery.timersToDelete.has(key)) {
                         // {
                         //     clearTimeout(this.timersToDelete.get(key)!);
                         // }
-                        this.timersToDelete.set(key, setTimeout(() => __awaiter(this, void 0, void 0, function* () {
+                        FasterQuery.timersToDelete.set(key, setTimeout(() => __awaiter(this, void 0, void 0, function* () {
                             yield this.deleteCache(key);
                             this.log(`DELETED DATA: ${fn.name}(${args})`, ttl);
                         }), ttl * 1000));
@@ -231,13 +228,31 @@ class FasterQuery {
             }
         });
     }
-    isDebugging() {
+    static isDebugging() {
         return process.env.NODE_ENV === 'development' || FasterQuery.isLogging;
     }
     log(...args) {
-        if (this.isDebugging())
+        if (FasterQuery.isDebugging())
             console.log(new Date().toLocaleString(), 'CACHED:V2 DEBUG: ', ...args);
     }
 }
+FasterQuery.timersToUpdate = new Map();
+FasterQuery.timersToDelete = new Map();
 FasterQuery.isLogging = false;
+process.on('exit', () => {
+    if (FasterQuery.isDebugging()) {
+        console.log('CACHED:V2 DEBUG: EXIT START');
+        console.log('CACHED:V2 DEBUG: CLEARING TIMERS', {
+            update: FasterQuery.timersToUpdate.size,
+            delete: FasterQuery.timersToDelete.size,
+        });
+        FasterQuery.timersToUpdate.forEach((timer) => {
+            clearInterval(timer);
+        });
+        FasterQuery.timersToDelete.forEach((timer) => {
+            clearTimeout(timer);
+        });
+        console.log('CACHED:V2 DEBUG: EXIT END');
+    }
+});
 exports.default = FasterQuery;

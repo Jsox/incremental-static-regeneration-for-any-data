@@ -1,3 +1,4 @@
+/// <reference types="node" />
 type AsyncFunction<T> = (...args: any[]) => Promise<T>;
 type CacheOptions = {
     ttl: number;
@@ -13,8 +14,8 @@ type CacheOptions = {
  */
 declare class FasterQuery {
     private cachePath;
-    private timersToUpdate;
-    private timersToDelete;
+    static timersToUpdate: Map<string, NodeJS.Timeout>;
+    static timersToDelete: Map<string, NodeJS.Timeout>;
     static isLogging: boolean;
     /**
      * Constructs a FasterQuery instance.
@@ -72,7 +73,7 @@ declare class FasterQuery {
      * @return {AsyncFunction<T>} - A memoized version of the input asynchronous function.
      */
     get<T>(fn: AsyncFunction<T>, options: CacheOptions): AsyncFunction<T>;
-    private isDebugging;
+    static isDebugging(): boolean;
     private log;
 }
 export default FasterQuery;

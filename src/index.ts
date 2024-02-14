@@ -22,8 +22,8 @@ type CacheOptions = {
  */
 class FasterQuery {
     private cachePath: string;
-    private timersToUpdate = new Map<string, number>();
-    private timersToDelete = new Map<string, NodeJS.Timeout>();
+    static timersToUpdate = new Map<string, NodeJS.Timeout>();
+    static timersToDelete = new Map<string, NodeJS.Timeout>();
     static isLogging = false;
 
     /**
@@ -159,14 +159,13 @@ class FasterQuery {
                     : false;
 
             if (autoUpdateDataByInterval) {
-                if (!this.timersToUpdate.has(key)) {
-                    this.timersToUpdate.set(key, ttl);
+                if (!FasterQuery.timersToUpdate.has(key)) {
                     this.log(
                         `SCHEDULED UPDATE: ${fn.name}(${args})`,
                         ttl,
-                        this.timersToUpdate.keys(),
+                        FasterQuery.timersToUpdate.keys(),
                     );
-                    setInterval(
+                    FasterQuery.timersToUpdate.set(key, setInterval(
                         async () => {
                             this.log(
                                 `UPDATED DATA IN SCHEDULE: ${fn.name}(${args})`,
@@ -175,16 +174,16 @@ class FasterQuery {
                             await this.executeFunctionAndWriteCache(fn, args);
                         },
                         (ttl - 2) * 1000,
-                    );
+                    ));
                 }
             }
 
             if (deleteAfterExpiration) {
-                if (!this.timersToDelete.has(key)) {
+                if (!FasterQuery.timersToDelete.has(key)) {
                     // {
                     //     clearTimeout(this.timersToDelete.get(key)!);
                     // }
-                    this.timersToDelete.set(
+                    FasterQuery.timersToDelete.set(
                         key,
                         setTimeout(async () => {
                             await this.deleteCache(key);
@@ -245,13 +244,30 @@ class FasterQuery {
             }
         };
     }
-    private isDebugging(): boolean {
+    static isDebugging(): boolean {
         return process.env.NODE_ENV === 'development' || FasterQuery.isLogging;
     }
 
     private log(...args: any) {
-        if (this.isDebugging())
+        if (FasterQuery.isDebugging())
             console.log(new Date().toLocaleString(), 'CACHED:V2 DEBUG: ', ...args);
     }
 }
+
+process.on('exit', () => {
+    if (FasterQuery.isDebugging()) {
+        console.log('CACHED:V2 DEBUG: EXIT START');
+        console.log('CACHED:V2 DEBUG: CLEARING TIMERS', {
+            update: FasterQuery.timersToUpdate.size,
+            delete: FasterQuery.timersToDelete.size,
+        });
+        FasterQuery.timersToUpdate.forEach((timer) => {
+            clearInterval(timer);
+        })
+        FasterQuery.timersToDelete.forEach((timer) => {
+            clearTimeout(timer);
+        })
+        console.log('CACHED:V2 DEBUG: EXIT END');
+    }
+});
 export default FasterQuery;
