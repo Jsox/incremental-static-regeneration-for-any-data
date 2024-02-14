@@ -1,32 +1,26 @@
-/// <reference types="node" />
-declare const cache: any;
-declare const md5: any;
-interface IOptions {
-    cacheTime?: number;
-    noCache?: boolean;
-    criticalCacheTime?: number;
-    onComplete?: (v: unknown) => any | undefined;
-    key: string | Buffer | [] | Uint8Array;
-    isLogging?: boolean;
-    clearCache?: boolean;
+type AsyncFunction<T> = (...args: any[]) => Promise<T>;
+type CacheOptions = {
+    ttl: number;
+} & ({
+    returnCachedIfExpiredAndUpdate: boolean;
+} | {
+    autoUpdateDataByInterval: boolean;
+} | {
+    deleteAfterExpiration: boolean;
+});
+declare class FasterQuery {
+    private cachePath;
+    private timersToUpdate;
+    private timersToDelete;
+    static isLogging: boolean;
+    constructor(cachePath: string);
+    private initializeCacheDirectory;
+    private hashFunction;
+    private readCache;
+    private writeCache;
+    private deleteCache;
+    private executeFunctionAndWriteCache;
+    private updateCacheIfNeeded;
+    get<T>(fn: AsyncFunction<T>, options: CacheOptions): AsyncFunction<T>;
 }
-export default class ISR {
-    cacheTime: number;
-    noCache: boolean;
-    criticalCacheTime: number;
-    now: number;
-    cache: typeof cache;
-    md5: typeof md5;
-    func: () => Promise<any>;
-    onComplete?: (v: unknown) => any | undefined;
-    key: string | Buffer | [] | Uint8Array;
-    data: any;
-    exists: any;
-    isLogging: boolean;
-    clearCache: boolean;
-    constructor(func: () => Promise<any>, options: IOptions);
-    getData(): Promise<any>;
-    getDataAndPutToCache(): Promise<unknown>;
-    log(f: any | unknown, s?: any | unknown, t?: any | unknown): void;
-}
-export {};
+export default FasterQuery;

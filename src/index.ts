@@ -1,145 +1,192 @@
-const cache = require('memory-cache');
-const md5 = require('md5');
+import * as fs from 'fs';
+import * as crypto from 'crypto';
+import util from 'util';
 
-interface IOptions {
-    cacheTime?: number;
-    noCache?: boolean;
-    criticalCacheTime?: number;
-    onComplete?: (v: unknown) => any | undefined;
-    key: string | Buffer | [] | Uint8Array;
-    isLogging?: boolean;
-    clearCache?: boolean;
-}
-export default class ISR {
-    cacheTime: number;
-    noCache: boolean;
-    criticalCacheTime: number;
-    now: number;
-    cache: typeof cache;
-    md5: typeof md5;
-    func: () => Promise<any>;
-    onComplete?: (v: unknown) => any | undefined;
-    key: string | Buffer | [] | Uint8Array;
-    data: any;
-    exists: any;
-    isLogging: boolean;
-    clearCache: boolean;
+const mkdir = util.promisify(fs.mkdir);
+const readFile = util.promisify(fs.readFile);
+const writeFile = util.promisify(fs.writeFile);
+const unlink = util.promisify(fs.unlink);
 
-    constructor(func: () => Promise<any>, options: IOptions) {
-        const {
-            noCache = false,
-            cacheTime = 5 * 1000,
-            criticalCacheTime = 60 * 60 * 1000,
-            key,
-            onComplete = undefined,
-            isLogging = false,
-            clearCache = false,
-        } = options;
+type AsyncFunction<T> = (...args: any[]) => Promise<T>;
 
-        this.clearCache = false;
-        this.exists = false;
-        this.cacheTime = cacheTime;
-        this.noCache = noCache;
-        this.criticalCacheTime = criticalCacheTime;
-        this.cache = cache;
-        this.md5 = md5;
-        this.func = func;
-        this.onComplete = onComplete;
-        this.isLogging = isLogging;
-        this.now = Date.now();
+type CacheOptions = {
+    ttl: number;
+} & (
+    | { returnCachedIfExpiredAndUpdate: boolean }
+    | { autoUpdateDataByInterval: boolean }
+    | { deleteAfterExpiration: boolean }
+    );
 
-        if (clearCache) this.cache.clear();
+class FasterQuery {
+    private cachePath: string;
+    private timersToUpdate = new Map<string, number>();
+    private timersToDelete = new Map<string, NodeJS.Timeout>();
+    static isLogging = false;
 
-        if (!key) {
-            throw new Error('ISR Error: need {options.key = uniqueKey}');
+    constructor(cachePath: string) {
+        this.cachePath = cachePath;
+        this.initializeCacheDirectory();
+    }
+
+    private async initializeCacheDirectory() {
+        try {
+            await mkdir(this.cachePath, { recursive: true });
+        } catch (error) {
+            console.error('Error creating cache directory:', error);
         }
-        this.key = this.md5(key);
-        this.data = null;
     }
 
-    async getData(): Promise<any> {
-        this.now = Date.now();
-
-        return new Promise(async (resolve) => {
-            this.log('starting ISR');
-            if (!this.noCache) {
-                this.exists = await this.cache.get(this.key);
-                this.log({
-                    'Cache exists': this.exists,
-                });
-            }
-            if (this.exists) {
-                let parsed = this.exists.parsed;
-                this.log({
-                    'Time difference': this.now - parsed,
-                });
-                let diff = this.now - parsed;
-
-                if (diff > this.criticalCacheTime) {
-                    this.log('Cache time critical');
-                    this.data = await this.getDataAndPutToCache();
-                    resolve(this.data);
-                }
-                if (diff > this.cacheTime) {
-                    this.log('Cache revalidation');
-                    this.getDataAndPutToCache();
-                }
-                this.log('Data returned from cache for ', Date.now() - this.now, 'ms');
-                resolve(this.exists.data);
-            } else {
-                this.log('getDataAndPutToCache');
-                this.data = await this.getDataAndPutToCache();
-                resolve(this.data);
-            }
-        });
+    private async hashFunction(
+        fn: AsyncFunction<any>,
+        args: any[],
+    ): Promise<string> {
+        const hash = crypto.createHash('md5');
+        hash.update(fn.toString());
+        hash.update(JSON.stringify(args));
+        return hash.digest('hex');
     }
 
-    async getDataAndPutToCache() {
-        this.log('---', 'start getDataAndPutToCache', '---');
-        return new Promise(async (resolve) => {
-            let result;
-            try {
-                result = await this.func();
-                this.log('Result of execution:', {
-                    result,
-                });
-                if (this.onComplete) {
-                    try {
-                        result = await this.onComplete(result);
-                        this.log('Result of execution onComplete:', {
-                            onComplete: typeof this.onComplete,
-                        });
-                    } catch (error: any) {
-                        this.log('Error onComplete: ', error?.message);
-                    }
-                }
-            } catch (error: any) {
-                this.log({
-                    errorMessage: error?.message,
-                    errorFull: error,
-                });
-                this.cache.del(this.key);
-                this.log('---', 'end getDataAndPutToCache', '---');
-                resolve(this.exists?.data || null);
-            }
-            if (!result) {
-                this.cache.del(this.key);
-                this.log('---', 'end getDataAndPutToCache', '---');
-                resolve(null);
-                return;
-            }
-            let toCache = {
-                parsed: this.now,
-                data: result,
-            };
-            this.log('Executed for', Date.now() - this.now, 'ms');
-            this.cache.put(this.key, toCache, this.criticalCacheTime);
-            this.log('---', 'end getDataAndPutToCache', '---');
-            resolve(toCache.data);
-        });
+    private async readCache(key: string): Promise<any | null> {
+        try {
+            const data = await readFile(
+                `${this.cachePath}/${key}.json`,
+                'utf8',
+            );
+            return JSON.parse(data);
+        } catch (error) {
+            return null;
+        }
     }
 
-    log(f: any | unknown, s: any | unknown = '', t: any | unknown = '') {
-        if (this.isLogging) console.log(f, s, t);
+    private async writeCache(key: string, data: any): Promise<void> {
+        await writeFile(
+            `${this.cachePath}/${key}.json`,
+            JSON.stringify(data),
+            'utf8',
+        );
+    }
+
+    private async deleteCache(key: string): Promise<void> {
+        await unlink(`${this.cachePath}/${key}.json`);
+    }
+
+    private async executeFunctionAndWriteCache<T>(
+        fn: AsyncFunction<T>,
+        args: any[],
+    ): Promise<any> {
+        const result = await fn(...args);
+        const key = await this.hashFunction(fn, args);
+        await this.writeCache(key, { result, timestamp: Date.now() });
+        return result;
+    }
+
+    private async updateCacheIfNeeded<T>(
+        key: string,
+        fn: AsyncFunction<T>,
+        args: any[],
+        options: CacheOptions,
+    ): Promise<any> {
+        const ttl = 'ttl' in options ? options.ttl : 60 * 60;
+        const autoUpdateDataByInterval =
+            'autoUpdateDataByInterval' in options
+                ? options.autoUpdateDataByInterval
+                : false;
+        const returnCachedIfExpiredAndUpdate =
+            'returnCachedIfExpiredAndUpdate' in options
+                ? options.returnCachedIfExpiredAndUpdate
+                : false;
+        const deleteAfterExpiration =
+            'deleteAfterExpiration' in options
+                ? options.deleteAfterExpiration
+                : false;
+
+        if (autoUpdateDataByInterval) {
+            if (!this.timersToUpdate.has(key)) {
+                this.timersToUpdate.set(key, ttl);
+                log(
+                    `SCHEDULED UPDATE: ${fn.name}(${args})`,
+                    ttl,
+                    this.timersToUpdate.keys(),
+                );
+                setInterval(
+                    async () => {
+                        log(
+                            `UPDATED DATA IN SCHEDULE: ${fn.name}(${args})`,
+                            `every (${ttl}-2) sec`,
+                        );
+                        this.executeFunctionAndWriteCache(fn, args);
+                    },
+                    (ttl - 2) * 1000,
+                );
+            }
+        }
+
+        if (deleteAfterExpiration) {
+            if (this.timersToDelete.has(key)) {
+                clearTimeout(this.timersToDelete.get(key));
+            }
+
+            this.timersToDelete.set(
+                key,
+                setTimeout(async () => {
+                    await this.deleteCache(key);
+                    log(`DELETED DATA: ${fn.name}(${args})`, ttl);
+                }, ttl * 1000),
+            );
+        }
+
+        const cachedData = await this.readCache(key);
+
+        if (cachedData !== null) {
+            const currentTime = Date.now();
+            const cacheTime = cachedData.timestamp;
+            if (currentTime - cacheTime <= ttl * 1000) {
+                log(
+                    `CACHE HIT: ${fn.name}(${args})`,
+                    ttl * 1000,
+                    currentTime - cacheTime,
+                    '<=',
+                    ttl * 1000,
+                );
+                return cachedData.result;
+            } else if (returnCachedIfExpiredAndUpdate) {
+                log(
+                    `CACHE EXPIRED - return Cached and update: ${fn.name}(${args})`,
+                    ttl * 1000,
+                    currentTime - cacheTime,
+                    '>',
+                    ttl * 1000,
+                );
+                this.executeFunctionAndWriteCache(fn, args);
+                return cachedData.result;
+            }
+        }
+        log(`CACHE MISS for ${key}`, ttl);
+        return await this.executeFunctionAndWriteCache(fn, args);
+    }
+
+    /**
+     * Returns a memoized version of an asynchronous function.
+     *
+     * @param {AsyncFunction<T>} fn - the asynchronous function to be memoized
+     * @param {CacheOptions} options - the options for caching
+     * @return {AsyncFunction<T>} a memoized version of the input asynchronous function
+     */
+    get<T>(fn: AsyncFunction<T>, options: CacheOptions): AsyncFunction<T> {
+        return async (...args: any[]): Promise<any> => {
+            const key = await this.hashFunction(fn, args);
+            return this.updateCacheIfNeeded(key, fn, args, options);
+        };
     }
 }
+
+function isDebugging(): boolean {
+    return process.env.NODE_ENV === 'development' || FasterQuery.isLogging;
+}
+
+function log(...args: any) {
+    if (isDebugging())
+        console.log(new Date().toLocaleString(), 'CACHED:V2 DEBUG: ', ...args);
+}
+
+export default FasterQuery;

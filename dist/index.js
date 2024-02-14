@@ -1,4 +1,27 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -8,120 +31,133 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-const cache = require('memory-cache');
-const md5 = require('md5');
-class ISR {
-    constructor(func, options) {
-        const { noCache = false, cacheTime = 5 * 1000, criticalCacheTime = 60 * 60 * 1000, key, onComplete = undefined, isLogging = false, clearCache = false, } = options;
-        this.clearCache = false;
-        this.exists = false;
-        this.cacheTime = cacheTime;
-        this.noCache = noCache;
-        this.criticalCacheTime = criticalCacheTime;
-        this.cache = cache;
-        this.md5 = md5;
-        this.func = func;
-        this.onComplete = onComplete;
-        this.isLogging = isLogging;
-        this.now = Date.now();
-        if (clearCache)
-            this.cache.clear();
-        if (!key) {
-            throw new Error('ISR Error: need {options.key = uniqueKey}');
-        }
-        this.key = this.md5(key);
-        this.data = null;
+const fs = __importStar(require("fs"));
+const crypto = __importStar(require("crypto"));
+const util_1 = __importDefault(require("util"));
+const mkdir = util_1.default.promisify(fs.mkdir);
+const readFile = util_1.default.promisify(fs.readFile);
+const writeFile = util_1.default.promisify(fs.writeFile);
+const unlink = util_1.default.promisify(fs.unlink);
+class FasterQuery {
+    constructor(cachePath) {
+        this.timersToUpdate = new Map();
+        this.timersToDelete = new Map();
+        this.cachePath = cachePath;
+        this.initializeCacheDirectory();
     }
-    getData() {
+    initializeCacheDirectory() {
         return __awaiter(this, void 0, void 0, function* () {
-            this.now = Date.now();
-            return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
-                this.log('starting ISR');
-                if (!this.noCache) {
-                    this.exists = yield this.cache.get(this.key);
-                    this.log({
-                        'Cache exists': this.exists,
-                    });
-                }
-                if (this.exists) {
-                    let parsed = this.exists.parsed;
-                    this.log({
-                        'Time difference': this.now - parsed,
-                    });
-                    let diff = this.now - parsed;
-                    if (diff > this.criticalCacheTime) {
-                        this.log('Cache time critical');
-                        this.data = yield this.getDataAndPutToCache();
-                        resolve(this.data);
-                    }
-                    if (diff > this.cacheTime) {
-                        this.log('Cache revalidation');
-                        this.getDataAndPutToCache();
-                    }
-                    this.log('Data returned from cache for ', Date.now() - this.now, 'ms');
-                    resolve(this.exists.data);
-                }
-                else {
-                    this.log('getDataAndPutToCache');
-                    this.data = yield this.getDataAndPutToCache();
-                    resolve(this.data);
-                }
-            }));
+            try {
+                yield mkdir(this.cachePath, { recursive: true });
+            }
+            catch (error) {
+                console.error('Error creating cache directory:', error);
+            }
         });
     }
-    getDataAndPutToCache() {
+    hashFunction(fn, args) {
         return __awaiter(this, void 0, void 0, function* () {
-            this.log('---', 'start getDataAndPutToCache', '---');
-            return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
-                var _a;
-                let result;
-                try {
-                    result = yield this.func();
-                    this.log('Result of execution:', {
-                        result,
-                    });
-                    if (this.onComplete) {
-                        try {
-                            result = yield this.onComplete(result);
-                            this.log('Result of execution onComplete:', {
-                                onComplete: typeof this.onComplete,
-                            });
-                        }
-                        catch (error) {
-                            this.log('Error onComplete: ', error === null || error === void 0 ? void 0 : error.message);
-                        }
-                    }
-                }
-                catch (error) {
-                    this.log({
-                        errorMessage: error === null || error === void 0 ? void 0 : error.message,
-                        errorFull: error,
-                    });
-                    this.cache.del(this.key);
-                    this.log('---', 'end getDataAndPutToCache', '---');
-                    resolve(((_a = this.exists) === null || _a === void 0 ? void 0 : _a.data) || null);
-                }
-                if (!result) {
-                    this.cache.del(this.key);
-                    this.log('---', 'end getDataAndPutToCache', '---');
-                    resolve(null);
-                    return;
-                }
-                let toCache = {
-                    parsed: this.now,
-                    data: result,
-                };
-                this.log('Executed for', Date.now() - this.now, 'ms');
-                this.cache.put(this.key, toCache, this.criticalCacheTime);
-                this.log('---', 'end getDataAndPutToCache', '---');
-                resolve(toCache.data);
-            }));
+            const hash = crypto.createHash('md5');
+            hash.update(fn.toString());
+            hash.update(JSON.stringify(args));
+            return hash.digest('hex');
         });
     }
-    log(f, s = '', t = '') {
-        if (this.isLogging)
-            console.log(f, s, t);
+    readCache(key) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const data = yield readFile(`${this.cachePath}/${key}.json`, 'utf8');
+                return JSON.parse(data);
+            }
+            catch (error) {
+                return null;
+            }
+        });
+    }
+    writeCache(key, data) {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield writeFile(`${this.cachePath}/${key}.json`, JSON.stringify(data), 'utf8');
+        });
+    }
+    deleteCache(key) {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield unlink(`${this.cachePath}/${key}.json`);
+        });
+    }
+    executeFunctionAndWriteCache(fn, args) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const result = yield fn(...args);
+            const key = yield this.hashFunction(fn, args);
+            yield this.writeCache(key, { result, timestamp: Date.now() });
+            return result;
+        });
+    }
+    updateCacheIfNeeded(key, fn, args, options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const ttl = 'ttl' in options ? options.ttl : 60 * 60;
+            const autoUpdateDataByInterval = 'autoUpdateDataByInterval' in options
+                ? options.autoUpdateDataByInterval
+                : false;
+            const returnCachedIfExpiredAndUpdate = 'returnCachedIfExpiredAndUpdate' in options
+                ? options.returnCachedIfExpiredAndUpdate
+                : false;
+            const deleteAfterExpiration = 'deleteAfterExpiration' in options
+                ? options.deleteAfterExpiration
+                : false;
+            if (autoUpdateDataByInterval) {
+                if (!this.timersToUpdate.has(key)) {
+                    this.timersToUpdate.set(key, ttl);
+                    log(`SCHEDULED UPDATE: ${fn.name}(${args})`, ttl, this.timersToUpdate.keys());
+                    setInterval(() => __awaiter(this, void 0, void 0, function* () {
+                        log(`UPDATED DATA IN SCHEDULE: ${fn.name}(${args})`, `every (${ttl}-2) sec`);
+                        this.executeFunctionAndWriteCache(fn, args);
+                    }), (ttl - 2) * 1000);
+                }
+            }
+            if (deleteAfterExpiration) {
+                if (this.timersToDelete.has(key)) {
+                    clearTimeout(this.timersToDelete.get(key));
+                }
+                this.timersToDelete.set(key, setTimeout(() => __awaiter(this, void 0, void 0, function* () {
+                    yield this.deleteCache(key);
+                    log(`DELETED DATA: ${fn.name}(${args})`, ttl);
+                }), ttl * 1000));
+            }
+            const cachedData = yield this.readCache(key);
+            if (cachedData !== null) {
+                const currentTime = Date.now();
+                const cacheTime = cachedData.timestamp;
+                if (currentTime - cacheTime <= ttl * 1000) {
+                    log(`CACHE HIT: ${fn.name}(${args})`, ttl * 1000, currentTime - cacheTime, '<=', ttl * 1000);
+                    return cachedData.result;
+                }
+                else if (returnCachedIfExpiredAndUpdate) {
+                    log(`CACHE EXPIRED - return Cached and update: ${fn.name}(${args})`, ttl * 1000, currentTime - cacheTime, '>', ttl * 1000);
+                    this.executeFunctionAndWriteCache(fn, args);
+                    return cachedData.result;
+                }
+            }
+            log(`CACHE MISS for ${key}`, ttl);
+            return yield this.executeFunctionAndWriteCache(fn, args);
+        });
+    }
+    get(fn, options) {
+        return (...args) => __awaiter(this, void 0, void 0, function* () {
+            const key = yield this.hashFunction(fn, args);
+            return this.updateCacheIfNeeded(key, fn, args, options);
+        });
     }
 }
-exports.default = ISR;
+FasterQuery.isLogging = false;
+function isDebugging() {
+    return process.env.NODE_ENV === 'development' || FasterQuery.isLogging;
+}
+function log(...args) {
+    if (isDebugging())
+        console.log(new Date().toLocaleString(), 'CACHED:V2 DEBUG: ', ...args);
+}
+exports.default = FasterQuery;

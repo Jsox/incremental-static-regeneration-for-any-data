@@ -1,11 +1,11 @@
 {
     "name": "faster-query",
-    "version": "1.1.1",
+    "version": "2.0.0",
     "description": "Faster query for any slow function. Get any data from cache and update in cache AFTER data is received",
     "types": "dist/index.d.ts",
     "keywords": [
         "revalidate",
-        "incremental",
+        "file cache",
         "cache",
         "caching",
         "fetch",
@@ -16,14 +16,10 @@
         "/src"
     ],
     "main": "./dist/index.js",
-    "repository": "https://github.com/Jsox/incremental-static-regeneration-for-any-data",
+    "repository": "https://github.com/Jsox/faster-query",
     "author": "Eugene Yakunin <admin@jsix.ru> (https://jsix.ru)",
     "license": "BSD-3-Clause",
     "private": false,
-    "dependencies": {
-        "md5": "^2.3.0",
-        "memory-cache": "^0.2.0"
-    },
     "scripts": {
         "build": "tsc"
     },
