@@ -1,6 +1,6 @@
 {
     "name": "faster-query",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "description": "Faster query for any slow function. Get any data from cache and update in cache AFTER data is received",
     "types": "dist/index.d.ts",
     "keywords": [
@@ -25,7 +25,7 @@
         "build": "tsc"
     },
     "devDependencies": {
-        "@types/node": "^18.13.0",
-        "typescript": "^4.9.5"
+        "@types/node": "^18.0.0",
+        "typescript": "^5.0.0"
     }
 }

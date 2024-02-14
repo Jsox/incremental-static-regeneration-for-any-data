@@ -72,5 +72,7 @@ declare class FasterQuery {
      * @return {AsyncFunction<T>} - A memoized version of the input asynchronous function.
      */
     get<T>(fn: AsyncFunction<T>, options: CacheOptions): AsyncFunction<T>;
+    private isDebugging;
+    private log;
 }
 export default FasterQuery;

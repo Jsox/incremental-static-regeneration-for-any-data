@@ -172,37 +172,39 @@ class FasterQuery {
                 if (autoUpdateDataByInterval) {
                     if (!this.timersToUpdate.has(key)) {
                         this.timersToUpdate.set(key, ttl);
-                        log(`SCHEDULED UPDATE: ${fn.name}(${args})`, ttl, this.timersToUpdate.keys());
+                        this.log(`SCHEDULED UPDATE: ${fn.name}(${args})`, ttl, this.timersToUpdate.keys());
                         setInterval(() => __awaiter(this, void 0, void 0, function* () {
-                            log(`UPDATED DATA IN SCHEDULE: ${fn.name}(${args})`, `every (${ttl}-2) sec`);
+                            this.log(`UPDATED DATA IN SCHEDULE: ${fn.name}(${args})`, `every (${ttl}-2) sec`);
                             yield this.executeFunctionAndWriteCache(fn, args);
                         }), (ttl - 2) * 1000);
                     }
                 }
                 if (deleteAfterExpiration) {
-                    if (this.timersToDelete.has(key)) {
-                        clearTimeout(this.timersToDelete.get(key));
+                    if (!this.timersToDelete.has(key)) {
+                        // {
+                        //     clearTimeout(this.timersToDelete.get(key)!);
+                        // }
+                        this.timersToDelete.set(key, setTimeout(() => __awaiter(this, void 0, void 0, function* () {
+                            yield this.deleteCache(key);
+                            this.log(`DELETED DATA: ${fn.name}(${args})`, ttl);
+                        }), ttl * 1000));
                     }
-                    this.timersToDelete.set(key, setTimeout(() => __awaiter(this, void 0, void 0, function* () {
-                        yield this.deleteCache(key);
-                        log(`DELETED DATA: ${fn.name}(${args})`, ttl);
-                    }), ttl * 1000));
                 }
                 const cachedData = yield this.readCache(key);
                 if (cachedData !== null) {
                     const currentTime = Date.now();
                     const cacheTime = cachedData.timestamp;
                     if (currentTime - cacheTime <= ttl * 1000) {
-                        log(`CACHE HIT: ${fn.name}(${args})`, ttl * 1000, currentTime - cacheTime, '<=', ttl * 1000);
+                        this.log(`CACHE HIT: ${fn.name}(${args})`, ttl * 1000, currentTime - cacheTime, '<=', ttl * 1000);
                         return cachedData.result;
                     }
                     else if (returnCachedIfExpiredAndUpdate) {
-                        log(`CACHE EXPIRED - return Cached and update: ${fn.name}(${args})`, ttl * 1000, currentTime - cacheTime, '>', ttl * 1000);
-                        yield this.executeFunctionAndWriteCache(fn, args);
+                        this.log(`CACHE EXPIRED - return Cached and update: ${fn.name}(${args})`, ttl * 1000, currentTime - cacheTime, '>', ttl * 1000);
+                        this.executeFunctionAndWriteCache(fn, args);
                         return cachedData.result;
                     }
                 }
-                log(`CACHE MISS for ${key}`, ttl);
+                this.log(`CACHE MISS for ${key}`, ttl);
                 return yield this.executeFunctionAndWriteCache(fn, args);
             }
             catch (error) {
@@ -229,13 +231,13 @@ class FasterQuery {
             }
         });
     }
+    isDebugging() {
+        return process.env.NODE_ENV === 'development' || FasterQuery.isLogging;
+    }
+    log(...args) {
+        if (this.isDebugging())
+            console.log(new Date().toLocaleString(), 'CACHED:V2 DEBUG: ', ...args);
+    }
 }
 FasterQuery.isLogging = false;
-function isDebugging() {
-    return process.env.NODE_ENV === 'development' || FasterQuery.isLogging;
-}
-function log(...args) {
-    if (isDebugging())
-        console.log(new Date().toLocaleString(), 'CACHED:V2 DEBUG: ', ...args);
-}
 exports.default = FasterQuery;
