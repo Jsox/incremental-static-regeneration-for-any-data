@@ -235,24 +235,24 @@ class FasterQuery {
         if (FasterQuery.isDebugging())
             console.log(new Date().toLocaleString(), 'CACHED:V2 DEBUG: ', ...args);
     }
-}
-FasterQuery.timersToUpdate = new Map();
-FasterQuery.timersToDelete = new Map();
-FasterQuery.isLogging = false;
-process.on('exit', () => {
-    if (FasterQuery.isDebugging()) {
-        console.log('CACHED:V2 DEBUG: EXIT START');
-        console.log('CACHED:V2 DEBUG: CLEARING TIMERS', {
-            update: FasterQuery.timersToUpdate.size,
-            delete: FasterQuery.timersToDelete.size,
-        });
+    static clearTimers(code) {
+        if (FasterQuery.isDebugging()) {
+            console.log('CACHED:V2 DEBUG: EXITTING APP WITH CODE: ', code);
+            console.log('CACHED:V2 DEBUG: CLEARING TIMERS', {
+                update: FasterQuery.timersToUpdate.size,
+                delete: FasterQuery.timersToDelete.size,
+            });
+        }
         FasterQuery.timersToUpdate.forEach((timer) => {
             clearInterval(timer);
         });
         FasterQuery.timersToDelete.forEach((timer) => {
             clearTimeout(timer);
         });
-        console.log('CACHED:V2 DEBUG: EXIT END');
     }
-});
+}
+FasterQuery.timersToUpdate = new Map();
+FasterQuery.timersToDelete = new Map();
+FasterQuery.isLogging = false;
+process.on('exit', FasterQuery.clearTimers);
 exports.default = FasterQuery;

@@ -75,5 +75,6 @@ declare class FasterQuery {
     get<T>(fn: AsyncFunction<T>, options: CacheOptions): AsyncFunction<T>;
     static isDebugging(): boolean;
     private log;
+    static clearTimers(code: number): void;
 }
 export default FasterQuery;
