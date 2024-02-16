@@ -24,7 +24,7 @@ class FasterQuery {
     private cachePath: string;
     static timersToUpdate = new Map<string, NodeJS.Timeout>();
     static timersToDelete = new Map<string, NodeJS.Timeout>();
-    static isLogging = false;
+    static isLogging = true;
 
     /**
      * Constructs a FasterQuery instance.
@@ -86,14 +86,14 @@ class FasterQuery {
      */
     private async writeCache(key: string, data: any): Promise<void> {
         try {
-        await writeFile(
-            `${this.cachePath}/${key}.json`,
-            JSON.stringify(data),
-            'utf8',
-        );
-    } catch (error) {
-        console.error('Error deleting cache:', error);
-    }
+            await writeFile(
+                `${this.cachePath}/${key}.json`,
+                JSON.stringify(data),
+                'utf8',
+            );
+        } catch (error) {
+            console.error('Error deleting cache:', error);
+        }
     }
 
     /**
@@ -165,16 +165,20 @@ class FasterQuery {
                         ttl,
                         FasterQuery.timersToUpdate.keys(),
                     );
-                    FasterQuery.timersToUpdate.set(key, setInterval(
-                        async () => {
-                            this.log(
-                                `UPDATED DATA IN SCHEDULE: ${fn.name}(${args})`,
-                                `every (${ttl}-2) sec`,
-                            );
-                            await this.executeFunctionAndWriteCache(fn, args);
-                        },
-                        (ttl - 2) * 1000,
-                    ));
+                    FasterQuery.timersToUpdate.set(
+                        key,
+                        setTimeout(
+                            () => {
+                                this.log(
+                                    `UPDATED DATA IN SCHEDULE: ${fn.name}(${args})`,
+                                    `every (${ttl}-2) sec`,
+                                    key,
+                                );
+                                this.executeFunctionAndWriteCache(fn, args);
+                            },
+                            (ttl - 2) * 1000,
+                        ),
+                    );
                 }
             }
 
@@ -245,15 +249,19 @@ class FasterQuery {
         };
     }
     static isDebugging(): boolean {
-        return process.env.NODE_ENV === 'development' || FasterQuery.isLogging;
+        return process.env.NODE_ENV === 'development' && FasterQuery.isLogging;
     }
 
     private log(...args: any) {
         if (FasterQuery.isDebugging())
-            console.log(new Date().toLocaleString(), 'CACHED:V2 DEBUG: ', ...args);
+            console.log(
+                new Date().toLocaleString(),
+                'CACHED:V2 DEBUG: ',
+                ...args,
+            );
     }
 
-    static clearTimers(code: number) {
+    static clearTimers(code: number = 0) {
         if (FasterQuery.isDebugging()) {
             console.log('CACHED:V2 DEBUG: EXITTING APP WITH CODE: ', code);
             console.log('CACHED:V2 DEBUG: CLEARING TIMERS', {
@@ -261,12 +269,13 @@ class FasterQuery {
                 delete: FasterQuery.timersToDelete.size,
             });
         }
+
         FasterQuery.timersToUpdate.forEach((timer) => {
             clearInterval(timer);
-        })
+        });
         FasterQuery.timersToDelete.forEach((timer) => {
             clearTimeout(timer);
-        })
+        });
     }
 }
 

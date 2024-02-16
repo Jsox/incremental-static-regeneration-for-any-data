@@ -170,10 +170,10 @@ class FasterQuery {
                 if (autoUpdateDataByInterval) {
                     if (!FasterQuery.timersToUpdate.has(key)) {
                         this.log(`SCHEDULED UPDATE: ${fn.name}(${args})`, ttl, FasterQuery.timersToUpdate.keys());
-                        FasterQuery.timersToUpdate.set(key, setInterval(() => __awaiter(this, void 0, void 0, function* () {
-                            this.log(`UPDATED DATA IN SCHEDULE: ${fn.name}(${args})`, `every (${ttl}-2) sec`);
-                            yield this.executeFunctionAndWriteCache(fn, args);
-                        }), (ttl - 2) * 1000));
+                        FasterQuery.timersToUpdate.set(key, setTimeout(() => {
+                            this.log(`UPDATED DATA IN SCHEDULE: ${fn.name}(${args})`, `every (${ttl}-2) sec`, key);
+                            this.executeFunctionAndWriteCache(fn, args);
+                        }, (ttl - 2) * 1000));
                     }
                 }
                 if (deleteAfterExpiration) {
@@ -229,13 +229,13 @@ class FasterQuery {
         });
     }
     static isDebugging() {
-        return process.env.NODE_ENV === 'development' || FasterQuery.isLogging;
+        return process.env.NODE_ENV === 'development' && FasterQuery.isLogging;
     }
     log(...args) {
         if (FasterQuery.isDebugging())
             console.log(new Date().toLocaleString(), 'CACHED:V2 DEBUG: ', ...args);
     }
-    static clearTimers(code) {
+    static clearTimers(code = 0) {
         if (FasterQuery.isDebugging()) {
             console.log('CACHED:V2 DEBUG: EXITTING APP WITH CODE: ', code);
             console.log('CACHED:V2 DEBUG: CLEARING TIMERS', {
@@ -253,6 +253,6 @@ class FasterQuery {
 }
 FasterQuery.timersToUpdate = new Map();
 FasterQuery.timersToDelete = new Map();
-FasterQuery.isLogging = false;
+FasterQuery.isLogging = true;
 process.on('exit', FasterQuery.clearTimers);
 exports.default = FasterQuery;
