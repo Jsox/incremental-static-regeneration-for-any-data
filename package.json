@@ -1,6 +1,6 @@
 {
     "name": "faster-query",
-    "version": "2.0.5",
+    "version": "2.0.6",
     "description": "Faster query for any slow function. Get any data from cache and update in cache AFTER data is received",
     "types": "dist/index.d.ts",
     "keywords": [

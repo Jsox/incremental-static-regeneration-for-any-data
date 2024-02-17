@@ -232,7 +232,7 @@ class FasterQuery {
         return process.env.NODE_ENV === 'development' && FasterQuery.isLogging;
     }
     log(...args) {
-        if (FasterQuery.isDebugging())
+        if (FasterQuery.isDebugging() && FasterQuery.isLogging)
             console.log(new Date().toLocaleString(), 'CACHED:V2 DEBUG: ', ...args);
     }
     static clearTimers(code = 0) {

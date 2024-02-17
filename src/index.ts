@@ -253,7 +253,7 @@ class FasterQuery {
     }
 
     private log(...args: any) {
-        if (FasterQuery.isDebugging())
+        if (FasterQuery.isDebugging() && FasterQuery.isLogging)
             console.log(
                 new Date().toLocaleString(),
                 'CACHED:V2 DEBUG: ',
