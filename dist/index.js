@@ -253,6 +253,6 @@ class FasterQuery {
 }
 FasterQuery.timersToUpdate = new Map();
 FasterQuery.timersToDelete = new Map();
-FasterQuery.isLogging = true;
+FasterQuery.isLogging = false;
 process.on('exit', FasterQuery.clearTimers);
 exports.default = FasterQuery;

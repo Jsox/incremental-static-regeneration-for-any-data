@@ -24,7 +24,7 @@ class FasterQuery {
     private cachePath: string;
     static timersToUpdate = new Map<string, NodeJS.Timeout>();
     static timersToDelete = new Map<string, NodeJS.Timeout>();
-    static isLogging = true;
+    static isLogging = false;
 
     /**
      * Constructs a FasterQuery instance.

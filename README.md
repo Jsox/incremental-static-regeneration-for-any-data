@@ -83,6 +83,16 @@ export const cachedDataBySlug = await cached.get(getDataBySlug, {
 });
 //---
 const result = await cachedDataBySlug('slug/to/get/data');
+
 ```
+### Logging
+```typescript
+import FasterQuery from 'faster-query';
+
+FasterQuery.isLogging = true
+
+```
+Logging only in development
+
 ## Clearing Intervals and Timers
 On ```process.on('exit', ...);``` script clearing all Intervals and Timers
